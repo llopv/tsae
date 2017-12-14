@@ -22,6 +22,7 @@ package recipes_service.tsae.sessions;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TimerTask;
@@ -101,35 +102,65 @@ public class TSAESessionOriginatorSide extends TimerTask{
 			Socket socket = new Socket(n.getAddress(), n.getPort());
 			ObjectInputStream_DS in = new ObjectInputStream_DS(socket.getInputStream());
 			ObjectOutputStream_DS out = new ObjectOutputStream_DS(socket.getOutputStream());
+
+			/////////////////////////////////////////////////////////////////////////////////
+			//Recollim localSummary i localAck
+			//necessari per poder crear el missatge   ??? synchronized???
+						
+			TimestampVector localSummary;
+			TimestampMatrix localAck;
 			
-			TimestampVector localSummary = this.serverData.getSummary().clone();
-			TimestampMatrix localAck = this.serverData.getAck().clone();
-
+			synchronized (serverData){
+				localAck = serverData.getAck().clone();
+				localSummary = serverData.getSummary().clone();
+				serverData.getAck().update(serverData.getId(), localSummary);
+			}
+			///////////////////////////////////////////////////////////////////////////////////
+			
+			
 			// Send to partner: local's summary and ack
-			Message	msg = new MessageAErequest(localSummary, localAck);
-			msg.setSessionNumber(current_session_number);
-            out.writeObject(msg);
-			lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] sent message: "+msg);
-
+			
+				Message	msg = new MessageAErequest(localSummary, localAck);
+				msg.setSessionNumber(current_session_number);
+	            out.writeObject(msg);
+				lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] sent message: "+msg);
+				
             // receive operations from partner
 			msg = (Message) in.readObject();
 			lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] received message: "+msg);
+			
+			/////////////////////////////////////////////////////////////////////
+			//per guardar els missatges de les operacions
+			
+			List<MessageOperation> mess_Ops = new ArrayList<>();
+			////////////////////////////////////////////////////////////////////
+			
 			while (msg.type() == MsgType.OPERATION){
-				// ...
+				
+				///////////////////////////////////////////////////////////////
+				// aquí les anem guardant
+				mess_Ops.add((MessageOperation)msg);
+				///////////////////////////////////////////////////////////////
+				
 				msg = (Message) in.readObject();
 				lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] received message: "+msg);
 			}
 
             // receive partner's summary and ack
 			if (msg.type() == MsgType.AE_REQUEST){
-				// ...
-				
-				// send operations
-				
+				///////////////////////////////////////////////////////////////
+				//  send operations	
 				//...
-					msg.setSessionNumber(current_session_number);
-					out.writeObject(msg);
-					lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] sent message: "+msg);
+				
+				MessageAErequest mAE = (MessageAErequest) msg;
+				for(Operation o : serverData.getLog().listNewer(mAE.getSummary())){
+					out.writeObject(new MessageOperation (o));
+				}
+				
+				
+					//msg.setSessionNumber(current_session_number);
+					//out.writeObject(msg);
+					//lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] sent message: "+msg);
 
 				// send and "end of TSAE session" message
 				msg = new MessageEndTSAE();  

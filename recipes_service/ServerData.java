@@ -33,6 +33,7 @@ import recipes_service.data.AddOperation;
 import recipes_service.data.Operation;
 import recipes_service.data.Recipe;
 import recipes_service.data.Recipes;
+import recipes_service.data.RemoveOperation;
 import recipes_service.tsae.data_structures.Log;
 import recipes_service.tsae.data_structures.Timestamp;
 import recipes_service.tsae.data_structures.TimestampMatrix;
@@ -243,4 +244,22 @@ public class ServerData {
 	public synchronized void notifyServerConnected(){
 		notifyAll();
 	}
+	
+	////////////////////////////////////////////////////////////////
+	// mètode per afegir una operació des de TSAESessionPartnerSide.
+    public synchronized void afegirOperacio(AddOperation AO) {
+        if (this.log.add(AO)) {
+            this.recipes.add(AO.getRecipe());
+        }
+    }
+
+ // mètode per esborrar una operació des de TSAESessionPartnerSide.
+    public synchronized void esborrarOperacio(RemoveOperation RO) {
+        if (this.log.add(RO)) {
+            this.recipes.remove(RO.getRecipeTitle());
+        }
+    }
+	///////////////////////////////////////////////////////////////////
+	
+	
 }

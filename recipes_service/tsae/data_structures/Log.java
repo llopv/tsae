@@ -67,18 +67,57 @@ public class Log implements Serializable{
 	 * @param op
 	 * @return true if op is inserted, false otherwise.
 	 */
-	public boolean add(Operation op){
-		List<Operation> principalLog = log.get(op.getTimestamp().getHostid());
-		if (principalLog.size() > 0) {
-			Operation lastOp = principalLog.get(principalLog.size() - 1);
-			if (lastOp.getTimestamp().compare(op.getTimestamp()) > 0) {
+	public synchronized boolean add(Operation op){
+		
+	// return generated automatically. Remove it when implementing your solution 
+	
+		String idHost = op.getTimestamp().getHostid();
+		Timestamp ultimTS;
+		List<Operation> ops = this.log.get(idHost);
+		
+		if (ops != null && ops.size() > 0){
+			ultimTS = ops.get(ops.size()-1).getTimestamp();
+		}
+		else {
+			ultimTS = null;
+		}
+		
+		long comp = op.getTimestamp().compare(ultimTS);
+		
+		if ( (ultimTS == null && comp == 0) 
+				|| (ultimTS != null && comp == 1) ){
+			this.log.get(idHost).add(op);
+			return true;
+		}
+		else return false;
+		
+	}
+		
+		/*
+		List<Operation> PrincipalLog = log.get(op.getTimestamp().getHostid());
+		if (PrincipalLog.size()>0){
+			Operation lastOp = PrincipalLog.get(PrincipalLog.size()-1);
+			if (lastOp.getTimestamp().compare(op.getTimestamp())>0){
 				return false;
 			}
 		}
-		principalLog.add(op);
-		log.put(op.getTimestamp().getHostid(), principalLog);
+		PrincipalLog.add(op);
+		log.put(op.getTimestamp().getHostid(), PrincipalLog);
 		return true;
 	}
+	*/
+	/*
+	private Timestamp get(String host){
+		
+		List<Operation> operations = this.log.get(host);
+		
+		if (operations != null && operations.size() > 0){
+			return operations.get(operations.size()-1).getTimestamp();
+		}
+		else return null;
+					
+	}
+	*/	
 	
 	/**
 	 * Checks the received summary (sum) and determines the operations
@@ -88,11 +127,23 @@ public class Log implements Serializable{
 	 * @param sum
 	 * @return list of operations
 	 */
-	public List<Operation> listNewer(TimestampVector sum){
+	public synchronized List<Operation> listNewer(TimestampVector sum){
 		
-		// return generated automatically. Remove it when implementing your solution 
-		return null;
-	}
+		List<Operation> llista = new Vector();
+		
+		for (String node : this.log.keySet()) {
+            List<Operation> operations = this.log.get(node);
+            Timestamp timestampToCompare = sum.getLast(node);
+
+            for (Operation op : operations) {
+                if (op.getTimestamp().compare(timestampToCompare) > 0) {
+                    llista.add(op);
+                }
+            }
+        }
+        return llista;
+    }
+	
 	
 	/**
 	 * Removes from the log the operations that have
@@ -109,15 +160,26 @@ public class Log implements Serializable{
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Log other = (Log) obj;
-		return other.log.equals(log);
-	}
+				
+		if ( obj == null  || !(obj instanceof Log) ){
+            return false;
+        } 
+		else 
+        	if (this == obj) {
+        		return true;
+        	}
+
+        if (this.log == ((Log)obj).log) {
+            return true;
+        } 
+        else 
+        	if (this.log == null || ((Log)obj).log == null) {
+        		return false;
+        } 
+        else {
+            return this.log.equals(((Log)obj).log);
+        }
+    }
 
 	/**
 	 * toString
