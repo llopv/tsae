@@ -105,9 +105,9 @@ public class TSAESessionOriginatorSide extends TimerTask{
 			TimestampVector localSummary;
 			TimestampMatrix localAck;
             synchronized (serverData) {
-                localSummary = serverData.getSummary().clone();
+                localSummary = this.serverData.getSummary().clone();
                 serverData.getAck().update(serverData.getId(), localSummary);
-                localAck = serverData.getAck().clone();
+                localAck = this.serverData.getAck().clone();
             }
 
 			// Send to partner: local's summary and ack
@@ -155,6 +155,7 @@ public class TSAESessionOriginatorSide extends TimerTask{
                         }
                         serverData.getSummary().updateMax(partner.getSummary());
                         serverData.getAck().updateMax(partner.getAck());
+                        serverData.getLog().purgeLog(serverData.getAck());
                     }
 				}
 

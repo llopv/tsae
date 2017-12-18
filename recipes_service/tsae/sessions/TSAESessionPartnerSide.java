@@ -73,11 +73,11 @@ public class TSAESessionPartnerSide extends Thread{
 			
 			TimestampVector localSummary;
 			TimestampMatrix localAck;
-            synchronized (serverData) {
-                localSummary = serverData.getSummary().clone();
-                serverData.getAck().update(serverData.getId(), localSummary);
-                localAck = serverData.getAck().clone();
-            }
+			synchronized (serverData) {
+				localSummary = this.serverData.getSummary().clone();
+				serverData.getAck().update(serverData.getId(), localSummary);
+				localAck = this.serverData.getAck().clone();
+			}
 
 			// receive originator's summary and ack
 			msg = (Message) in.readObject();
@@ -121,14 +121,15 @@ public class TSAESessionPartnerSide extends Thread{
 					msg.setSessionNumber(current_session_number);
 		            out.writeObject(msg);					
 					lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] sent message: "+ msg);
-					
-                    synchronized (serverData) {
-                        for (Operation op : ops) {
-                                serverData.execOperation(op);
-                        }
-                        serverData.getSummary().updateMax(originator.getSummary());
-                        serverData.getAck().updateMax(originator.getAck());
-                    }
+
+					synchronized (serverData) {
+						for (Operation op : ops) {
+							serverData.execOperation(op);
+						}
+						serverData.getSummary().updateMax(originator.getSummary());
+						serverData.getAck().updateMax(originator.getAck());
+						serverData.getLog().purgeLog(serverData.getAck());
+					}
 				}
 				
 			}

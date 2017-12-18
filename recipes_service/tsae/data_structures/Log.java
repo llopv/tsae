@@ -117,12 +117,11 @@ public class Log implements Serializable{
 	 */
 	public synchronized void purgeLog(TimestampMatrix ack){
 		List<String> participants = new Vector<String>(this.log.keySet());
-
+		TimestampVector min = ack.minTimestampVector();
 		for (Iterator<String> it = participants.iterator(); it.hasNext(); ){
 			String node = it.next();
-			TimestampVector vector = ack.getTimestampVector(node);
 			for (Iterator<Operation> opIt = log.get(node).iterator(); opIt.hasNext();) {
-				if (opIt.next().getTimestamp().compare(vector.getLast(node)) <= 0) {
+				if (min.getLast(node) != null && opIt.next().getTimestamp().compare(min.getLast(node)) <= 0) {
 					opIt.remove();
 				}
 			}
