@@ -23,7 +23,6 @@ package recipes_service.tsae.sessions;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
@@ -36,10 +35,7 @@ import recipes_service.communication.MessageAErequest;
 import recipes_service.communication.MessageEndTSAE;
 import recipes_service.communication.MessageOperation;
 import recipes_service.communication.MsgType;
-import recipes_service.data.AddOperation;
 import recipes_service.data.Operation;
-import recipes_service.data.OperationType;
-import recipes_service.data.RemoveOperation;
 import recipes_service.tsae.data_structures.TimestampMatrix;
 import recipes_service.tsae.data_structures.TimestampVector;
 
@@ -74,65 +70,43 @@ public class TSAESessionPartnerSide extends Thread{
 		try {
 			ObjectOutputStream_DS out = new ObjectOutputStream_DS(socket.getOutputStream());
 			ObjectInputStream_DS in = new ObjectInputStream_DS(socket.getInputStream());
+			
+			TimestampVector localSummary = this.serverData.getSummary().clone();
+			serverData.getAck().update(serverData.getId(), serverData.getAck().minTimestampVector());
+			TimestampMatrix localAck = this.serverData.getAck().clone();
 
 			// receive originator's summary and ack
 			msg = (Message) in.readObject();
 			current_session_number = msg.getSessionNumber();
 			lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] TSAE session");
 			lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] received message: "+ msg);
-			
-									
 			if (msg.type() == MsgType.AE_REQUEST){
 				// ...
+				TimestampVector originatorSummary = ((MessageAErequest) msg).getSummary();
+				List<Operation> operations = serverData.getLog().listNewer(originatorSummary);
 				
 	            // send operations
-					// ...
+				for (Operation op: operations) {
+					msg = new MessageOperation(op);
 					msg.setSessionNumber(current_session_number);
 					out.writeObject(msg);
 					lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] sent message: "+ msg);
-
+				}
+				
 				// send to originator: local's summary and ack
 				// ...
-					
-				/////////////////////////////////////////////////////////////////////////////////
-				//Recollim localSummary i localAck
-				//necessari per poder crear el missatge   ??? synchronized???
-				
-				MessageAErequest mAE = (MessageAErequest) msg;	
-				TimestampVector localSummary;
-				TimestampMatrix localAck;
-				
-				synchronized (serverData){
-				localAck = serverData.getAck().clone();
-				localSummary = serverData.getSummary().clone();
-				serverData.getAck().update(serverData.getId(), localSummary);
-				}
-				for (Operation op: serverData.getLog().listNewer(mAE.getSummary())){
-					out.writeObject(new MessageOperation(op));
-				}
-				
-				out.writeObject(new MessageAErequest(localSummary, localAck));
-				
-				
-				///////////////////////////////////////////////////////////////////////////////////		
-		
+
+				msg = new MessageAErequest(localSummary, localAck);
+				msg.setSessionNumber(current_session_number);
+				out.writeObject(msg);
 				lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] sent message: "+ msg);
 
 	            // receive operations
-				///////////////////////////////////////////////////////////////////////////////////
-				//
-				List<MessageOperation> ops = new ArrayList<>();
-				///////////////////////////////////////////////////////////////////////////////////
-				
 				msg = (Message) in.readObject();
 				lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] received message: "+ msg);
 				while (msg.type() == MsgType.OPERATION){
-					// ...
-					///////////////////////////////////////////////////////////////////////////////////
-					//
-					ops.add( (MessageOperation)msg );
-					///////////////////////////////////////////////////////////////////////////////////
-					
+					Operation op = ((MessageOperation)msg).getOperation();
+					serverData.getLog().add(op);
 					msg = (Message) in.readObject();
 					lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] received message: "+ msg);
 				}
@@ -144,34 +118,7 @@ public class TSAESessionPartnerSide extends Thread{
 					msg.setSessionNumber(current_session_number);
 		            out.writeObject(msg);					
 					lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] sent message: "+ msg);
-				
-				
-				/////////////////////////////////////////////////////////////
-				//
-				//
-					synchronized (serverData) {
-                        for (MessageOperation op : ops) {
-                            if (op.getOperation().getType() == OperationType.ADD) {
-                                serverData.afegirOperacio((AddOperation) op.getOperation());
-                            } else {
-                                serverData.esborrarOperacio((RemoveOperation) op.getOperation());
-                            }
-                        }
-
-                        serverData.getSummary().updateMax(mAE.getSummary());
-                        serverData.getAck().updateMax(mAE.getAck());
-                        serverData.getLog().purgeLog(serverData.getAck());
-                    }
-				/////////////////////////////////////////////////////////////////////////////
-					
-				
-				
-				
-				
-				
 				}
-				
-				
 				
 			}
 			socket.close();		

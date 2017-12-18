@@ -67,57 +67,18 @@ public class Log implements Serializable{
 	 * @param op
 	 * @return true if op is inserted, false otherwise.
 	 */
-	public synchronized boolean add(Operation op){
-		
-	// return generated automatically. Remove it when implementing your solution 
-	
-		String idHost = op.getTimestamp().getHostid();
-		Timestamp ultimTS;
-		List<Operation> ops = this.log.get(idHost);
-		
-		if (ops != null && ops.size() > 0){
-			ultimTS = ops.get(ops.size()-1).getTimestamp();
-		}
-		else {
-			ultimTS = null;
-		}
-		
-		long comp = op.getTimestamp().compare(ultimTS);
-		
-		if ( (ultimTS == null && comp == 0) 
-				|| (ultimTS != null && comp == 1) ){
-			this.log.get(idHost).add(op);
-			return true;
-		}
-		else return false;
-		
-	}
-		
-		/*
-		List<Operation> PrincipalLog = log.get(op.getTimestamp().getHostid());
-		if (PrincipalLog.size()>0){
-			Operation lastOp = PrincipalLog.get(PrincipalLog.size()-1);
-			if (lastOp.getTimestamp().compare(op.getTimestamp())>0){
+	public boolean add(Operation op){
+		List<Operation> principalLog = log.get(op.getTimestamp().getHostid());
+		if (principalLog.size() > 0) {
+			Operation lastOp = principalLog.get(principalLog.size() - 1);
+			if (lastOp.getTimestamp().compare(op.getTimestamp()) >= 0) {
 				return false;
 			}
 		}
-		PrincipalLog.add(op);
-		log.put(op.getTimestamp().getHostid(), PrincipalLog);
+		principalLog.add(op);
+		log.put(op.getTimestamp().getHostid(), principalLog);
 		return true;
 	}
-	*/
-	/*
-	private Timestamp get(String host){
-		
-		List<Operation> operations = this.log.get(host);
-		
-		if (operations != null && operations.size() > 0){
-			return operations.get(operations.size()-1).getTimestamp();
-		}
-		else return null;
-					
-	}
-	*/	
 	
 	/**
 	 * Checks the received summary (sum) and determines the operations
@@ -127,23 +88,25 @@ public class Log implements Serializable{
 	 * @param sum
 	 * @return list of operations
 	 */
-	public synchronized List<Operation> listNewer(TimestampVector sum){
-		
-		List<Operation> llista = new Vector();
-		
-		for (String node : this.log.keySet()) {
-            List<Operation> operations = this.log.get(node);
-            Timestamp timestampToCompare = sum.getLast(node);
+	public List<Operation> listNewer(TimestampVector sum) {
 
-            for (Operation op : operations) {
-                if (op.getTimestamp().compare(timestampToCompare) > 0) {
-                    llista.add(op);
-                }
-            }
-        }
-        return llista;
-    }
-	
+		List<Operation> list = new Vector<Operation>();
+		List<String> participants = new Vector<String>(this.log.keySet());
+
+		for (Iterator<String> it = participants.iterator(); it.hasNext(); ){
+			String node = it.next();
+			List<Operation> operations = new Vector<Operation>(this.log.get(node));
+			Timestamp timestampToCompare = sum.getLast(node);
+
+			for (Iterator<Operation> opIt = operations.iterator(); opIt.hasNext(); ) {
+				Operation op = opIt.next();
+				if (op.getTimestamp().compare(timestampToCompare) > 0) {
+					list.add(op);
+				}
+			}
+		}
+		return list;
+	}
 	
 	/**
 	 * Removes from the log the operations that have
@@ -153,6 +116,17 @@ public class Log implements Serializable{
 	 * @param ack: ackSummary.
 	 */
 	public void purgeLog(TimestampMatrix ack){
+		List<String> participants = new Vector<String>(this.log.keySet());
+
+		for (Iterator<String> it = participants.iterator(); it.hasNext(); ){
+			String node = it.next();
+			TimestampVector vector = ack.getTimestampVector(node);
+			for (Iterator<Operation> opIt = log.get(node).iterator(); opIt.hasNext();) {
+				if (opIt.next().getTimestamp().compare(vector.getLast(node)) <= 0) {
+					opIt.remove();
+				}
+			}
+		}
 	}
 
 	/**
@@ -160,26 +134,15 @@ public class Log implements Serializable{
 	 */
 	@Override
 	public boolean equals(Object obj) {
-				
-		if ( obj == null  || !(obj instanceof Log) ){
-            return false;
-        } 
-		else 
-        	if (this == obj) {
-        		return true;
-        	}
-
-        if (this.log == ((Log)obj).log) {
-            return true;
-        } 
-        else 
-        	if (this.log == null || ((Log)obj).log == null) {
-        		return false;
-        } 
-        else {
-            return this.log.equals(((Log)obj).log);
-        }
-    }
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Log other = (Log) obj;
+		return other.log.equals(log);
+	}
 
 	/**
 	 * toString
