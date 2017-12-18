@@ -71,9 +71,13 @@ public class TSAESessionPartnerSide extends Thread{
 			ObjectOutputStream_DS out = new ObjectOutputStream_DS(socket.getOutputStream());
 			ObjectInputStream_DS in = new ObjectInputStream_DS(socket.getInputStream());
 			
-			TimestampVector localSummary = this.serverData.getSummary().clone();
-			serverData.getAck().update(serverData.getId(), serverData.getAck().minTimestampVector());
-			TimestampMatrix localAck = this.serverData.getAck().clone();
+			TimestampVector localSummary;
+			TimestampMatrix localAck;
+			synchronized(serverData) {
+				localSummary = this.serverData.getSummary().clone();
+				serverData.getAck().update(serverData.getId(), serverData.getAck().minTimestampVector());
+				localAck = this.serverData.getAck().clone();
+			}
 
 			// receive originator's summary and ack
 			msg = (Message) in.readObject();

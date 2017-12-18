@@ -102,9 +102,13 @@ public class TSAESessionOriginatorSide extends TimerTask{
 			ObjectInputStream_DS in = new ObjectInputStream_DS(socket.getInputStream());
 			ObjectOutputStream_DS out = new ObjectOutputStream_DS(socket.getOutputStream());
 			
-			TimestampVector localSummary = this.serverData.getSummary().clone();
-			serverData.getAck().update(serverData.getId(), serverData.getAck().minTimestampVector());
-			TimestampMatrix localAck = this.serverData.getAck().clone();
+			TimestampVector localSummary;
+			TimestampMatrix localAck;
+			synchronized(serverData) {
+				localSummary = this.serverData.getSummary().clone();
+				serverData.getAck().update(serverData.getId(), serverData.getAck().minTimestampVector());
+				localAck = this.serverData.getAck().clone();
+			}
 
 			// Send to partner: local's summary and ack
 			Message	msg = new MessageAErequest(localSummary, localAck);
@@ -126,8 +130,9 @@ public class TSAESessionOriginatorSide extends TimerTask{
             // receive partner's summary and ack
 			if (msg.type() == MsgType.AE_REQUEST){
 				// ...
-				TimestampVector partnerSummary = ((MessageAErequest) msg).getSummary();
-				List<Operation> operations = serverData.getLog().listNewer(partnerSummary);
+				MessageAErequest partner = (MessageAErequest) msg;
+				List<Operation> operations = serverData.getLog().listNewer(partner.getSummary());
+				//serverData.getAck().update(serverData);
 				// send operations
 				
 				//...
@@ -149,6 +154,19 @@ public class TSAESessionOriginatorSide extends TimerTask{
 				lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] received message: "+msg);
 				if (msg.type() == MsgType.END_TSAE){
 					// 
+					synchronized (serverData) {
+                        /*for (MessageOperation op : operations) {
+                            if (op.getOperation().getType() == OperationType.ADD) {
+                                serverData.execOperation((AddOperation) op.getOperation());
+                            } else {
+                                serverData.execOperation((RemoveOperation) op.getOperation());
+                            }
+                        }*/
+
+                        serverData.getSummary().updateMax(partner.getSummary());
+                        serverData.getAck().updateMax(partner.getAck());
+                        serverData.getLog().purgeLog(serverData.getAck());
+                    }
 				}
 
 			}			
