@@ -62,7 +62,7 @@ public class TimestampMatrix implements Serializable{
 	 * Merges two timestamp matrix taking the elementwise maximum
 	 * @param tsMatrix
 	 */
-	public void updateMax(TimestampMatrix tsMatrix){
+	public synchronized void updateMax(TimestampMatrix tsMatrix){
 		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
 			String node = it.next();
 			timestampMatrix.get(node).updateMax(tsMatrix.getTimestampVector(node));
@@ -74,7 +74,7 @@ public class TimestampMatrix implements Serializable{
 	 * @param node
 	 * @param tsVector
 	 */
-	public void update(String node, TimestampVector tsVector){
+	public synchronized void update(String node, TimestampVector tsVector){
 		timestampMatrix.put(node, tsVector);
 	}
 	

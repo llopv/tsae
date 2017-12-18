@@ -67,7 +67,7 @@ public class Log implements Serializable{
 	 * @param op
 	 * @return true if op is inserted, false otherwise.
 	 */
-	public boolean add(Operation op){
+	public synchronized boolean add(Operation op){
 		List<Operation> principalLog = log.get(op.getTimestamp().getHostid());
 		if (principalLog.size() > 0) {
 			Operation lastOp = principalLog.get(principalLog.size() - 1);
@@ -88,7 +88,7 @@ public class Log implements Serializable{
 	 * @param sum
 	 * @return list of operations
 	 */
-	public List<Operation> listNewer(TimestampVector sum) {
+	public synchronized List<Operation> listNewer(TimestampVector sum) {
 
 		List<Operation> list = new Vector<Operation>();
 		List<String> participants = new Vector<String>(this.log.keySet());
@@ -115,7 +115,7 @@ public class Log implements Serializable{
 	 * ackSummary. 
 	 * @param ack: ackSummary.
 	 */
-	public void purgeLog(TimestampMatrix ack){
+	public synchronized void purgeLog(TimestampMatrix ack){
 		List<String> participants = new Vector<String>(this.log.keySet());
 
 		for (Iterator<String> it = participants.iterator(); it.hasNext(); ){

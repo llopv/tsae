@@ -31,6 +31,7 @@ import recipes_service.communication.Host;
 import recipes_service.communication.Hosts;
 import recipes_service.data.AddOperation;
 import recipes_service.data.Operation;
+import recipes_service.data.OperationType;
 import recipes_service.data.Recipe;
 import recipes_service.data.Recipes;
 import recipes_service.data.RemoveOperation;
@@ -244,22 +245,16 @@ public class ServerData {
 	public synchronized void notifyServerConnected(){
 		notifyAll();
 	}
-	
-	////////////////////////////////////////////////////////////////
-	// mètode per afegir una operació des de TSAESessionPartnerSide.
-    public synchronized void afegirOperacio(AddOperation AO) {
-        if (this.log.add(AO)) {
-            this.recipes.add(AO.getRecipe());
-        }
-    }
 
- // mètode per esborrar una operació des de TSAESessionPartnerSide.
-    public synchronized void esborrarOperacio(RemoveOperation RO) {
-        if (this.log.add(RO)) {
-            this.recipes.remove(RO.getRecipeTitle());
-        }
-    }
-	///////////////////////////////////////////////////////////////////
+	public synchronized void execOperation(Operation op) {
+		if (log.add(op)) {
+			if (op.getType().equals(OperationType.ADD)) {
+				recipes.add(((AddOperation)op).getRecipe());
+			} else {
+				recipes.remove(((RemoveOperation)op).getRecipeTitle());
+			}
+		}
+	}
 	
 	
 }

@@ -22,7 +22,7 @@ package recipes_service.tsae.sessions;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.TimerTask;
 import java.util.Vector;
@@ -104,11 +104,11 @@ public class TSAESessionOriginatorSide extends TimerTask{
 			
 			TimestampVector localSummary;
 			TimestampMatrix localAck;
-			synchronized(serverData) {
-				localSummary = this.serverData.getSummary().clone();
-				serverData.getAck().update(serverData.getId(), serverData.getAck().minTimestampVector());
-				localAck = this.serverData.getAck().clone();
-			}
+            synchronized (serverData) {
+                localSummary = serverData.getSummary().clone();
+                serverData.getAck().update(serverData.getId(), localSummary);
+                localAck = serverData.getAck().clone();
+            }
 
 			// Send to partner: local's summary and ack
 			Message	msg = new MessageAErequest(localSummary, localAck);
@@ -117,25 +117,21 @@ public class TSAESessionOriginatorSide extends TimerTask{
 			lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] sent message: "+msg);
 
             // receive operations from partner
+			List<Operation> ops = new ArrayList<Operation>();
 			msg = (Message) in.readObject();
 			lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] received message: "+msg);
 			while (msg.type() == MsgType.OPERATION){
-				// ...
-				Operation op = ((MessageOperation)msg).getOperation();
-				serverData.getLog().add(op);
+				ops.add(((MessageOperation)msg).getOperation());
 				msg = (Message) in.readObject();
 				lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] received message: "+msg);
 			}
 
             // receive partner's summary and ack
 			if (msg.type() == MsgType.AE_REQUEST){
-				// ...
 				MessageAErequest partner = (MessageAErequest) msg;
 				List<Operation> operations = serverData.getLog().listNewer(partner.getSummary());
-				//serverData.getAck().update(serverData);
+
 				// send operations
-				
-				//...
 				for (Operation op: operations) {
 					msg = new MessageOperation(op);
 					msg.setSessionNumber(current_session_number);
@@ -153,19 +149,12 @@ public class TSAESessionOriginatorSide extends TimerTask{
 				msg = (Message) in.readObject();
 				lsim.log(Level.TRACE, "[TSAESessionOriginatorSide] [session: "+current_session_number+"] received message: "+msg);
 				if (msg.type() == MsgType.END_TSAE){
-					// 
 					synchronized (serverData) {
-                        /*for (MessageOperation op : operations) {
-                            if (op.getOperation().getType() == OperationType.ADD) {
-                                serverData.execOperation((AddOperation) op.getOperation());
-                            } else {
-                                serverData.execOperation((RemoveOperation) op.getOperation());
-                            }
-                        }*/
-
+                        for (Operation op : ops) {
+                            serverData.execOperation(op);
+                        }
                         serverData.getSummary().updateMax(partner.getSummary());
                         serverData.getAck().updateMax(partner.getAck());
-                        serverData.getLog().purgeLog(serverData.getAck());
                     }
 				}
 
